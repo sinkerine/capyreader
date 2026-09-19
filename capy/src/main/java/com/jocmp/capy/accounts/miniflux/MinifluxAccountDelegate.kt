@@ -4,6 +4,7 @@ import com.jocmp.capy.AccountDelegate
 import com.jocmp.capy.AccountPreferences
 import com.jocmp.capy.ArticleFilter
 import com.jocmp.capy.Feed
+import com.jocmp.capy.FeedPriority
 import com.jocmp.capy.accounts.AddFeedResult
 import com.jocmp.capy.accounts.withErrorHandling
 import com.jocmp.capy.common.ContentFormatter
@@ -435,7 +436,9 @@ internal class MinifluxAccountDelegate(
             feed_url = feed.feed_url,
             site_url = feed.site_url,
             favicon_url = icon,
-            priority = null,
+            priority = feed.category
+                ?.takeIf { it.hide_globally }
+                ?.let { FeedPriority.CATEGORY.value },
             itunes_image_url = null,
             read_later = false,
         )

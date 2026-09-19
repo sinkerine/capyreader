@@ -7,5 +7,6 @@ data class Category(
     val id: Long,
     val title: String,
     val user_id: Long,
-    val feed_count: Int? = null
+    val feed_count: Int? = null,
+    val hide_globally: Boolean = false,
 )

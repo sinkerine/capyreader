@@ -3,12 +3,15 @@ package com.jocmp.capy.accounts.miniflux
 import com.jocmp.capy.AccountDelegate
 import com.jocmp.capy.AccountPreferences
 import com.jocmp.capy.ArticleFilter
+import com.jocmp.capy.ArticleStatus
+import com.jocmp.capy.FeedPriority
 import com.jocmp.capy.InMemoryDataStore
 import com.jocmp.capy.InMemoryDatabaseProvider
 import com.jocmp.capy.accounts.AddFeedResult
 import com.jocmp.capy.db.Database
 import com.jocmp.capy.fixtures.FeedFixture
 import com.jocmp.capy.persistence.EnclosureRecords
+import com.jocmp.capy.persistence.ArticleRecords
 import com.jocmp.minifluxclient.Category
 import com.jocmp.minifluxclient.CreateCategoryRequest
 import com.jocmp.minifluxclient.CreateFeedRequest
@@ -35,6 +38,7 @@ import retrofit2.Response
 import java.net.SocketTimeoutException
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MinifluxAccountDelegateTest {
@@ -238,6 +242,81 @@ class MinifluxAccountDelegateTest {
 
         val enclosures = EnclosureRecords(database).findByArticle(vergeArticle.id.toString())
         assertEquals(expected = 1, actual = enclosures.size)
+    }
+
+    @Test
+    fun refresh_hidesCategoryGloballyButKeepsFolderAndFeedVisible() = runTest {
+        val hiddenCategory = category.copy(hide_globally = true)
+        val hiddenFeed = arsTechnicaFeed.copy(category = hiddenCategory)
+        val hiddenFeeds = listOf(hiddenFeed, vergeFeed)
+
+        coEvery { miniflux.feeds() }.returns(Response.success(hiddenFeeds))
+        coEvery { miniflux.icon(1) }.returns(
+            Response.success(IconData(id = 1, data = "image/png;base64,abc", mime_type = "image/png"))
+        )
+        coEvery { miniflux.entries(starred = true, limit = 250, offset = 0) }.returns(
+            Response.success(EntryResultSet(total = 0, entries = emptyList()))
+        )
+        coEvery { miniflux.entries(status = EntryStatus.UNREAD.value, limit = 250, offset = 0) }.returns(
+            Response.success(EntryResultSet(total = 1, entries = listOf(arsTechnicaArticle)))
+        )
+        coEvery {
+            miniflux.entries(
+                limit = 250,
+                offset = 0,
+                order = "published_at",
+                direction = "desc",
+                changedAfter = any(),
+            )
+        }.returns(Response.success(EntryResultSet(total = 0, entries = emptyList())))
+        coEvery {
+            miniflux.entries(
+                limit = 250,
+                offset = 0,
+                order = "published_at",
+                direction = "desc",
+                changedAfter = null,
+            )
+        }.returns(Response.success(EntryResultSet(total = 2, entries = entries)))
+
+        delegate.refresh(ArticleFilter.default())
+
+        val hiddenFeedInDb = database.feedsQueries.find("2").executeAsOne()
+        assertEquals(FeedPriority.CATEGORY, FeedPriority.parse(hiddenFeedInDb.priority))
+        assertEquals(
+            expected = 1L,
+            actual = ArticleRecords(database).byStatus.count(ArticleStatus.ALL).executeAsOne(),
+        )
+        assertEquals(
+            expected = 1L,
+            actual = ArticleRecords(database).byFeed.count(
+                feedIDs = listOf("2"),
+                status = ArticleStatus.UNREAD,
+                query = null,
+                since = null,
+                priority = FeedPriority.CATEGORY,
+            ).executeAsOne(),
+        )
+        assertEquals(
+            expected = 1L,
+            actual = ArticleRecords(database).byFeed.count(
+                feedIDs = listOf("2"),
+                status = ArticleStatus.UNREAD,
+                query = null,
+                since = null,
+                priority = FeedPriority.FEED,
+            ).executeAsOne(),
+        )
+        assertEquals(
+            expected = listOf("Tech"),
+            actual = database.feedsQueries.tagged().executeAsList().mapNotNull { it.name },
+        )
+        assertNull(database.feedsQueries.find("5").executeAsOne().priority)
+
+        coEvery { miniflux.feeds() }.returns(Response.success(feeds))
+        delegate.refresh(ArticleFilter.default())
+
+        assertNull(database.feedsQueries.find("2").executeAsOne().priority)
     }
 
     @Test
