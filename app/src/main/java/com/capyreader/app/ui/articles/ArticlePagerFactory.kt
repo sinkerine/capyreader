@@ -1,14 +1,12 @@
 package com.capyreader.app.ui.articles
 
 import androidx.paging.PagingSource
-import app.cash.sqldelight.paging3.QueryPagingSource
 import com.jocmp.capy.Article
 import com.jocmp.capy.ArticleFilter
 import com.jocmp.capy.FeedPriority
 import com.jocmp.capy.articles.SortOrder
 import com.jocmp.capy.db.Database
 import com.jocmp.capy.persistence.ArticleRecords
-import kotlinx.coroutines.Dispatchers
 import java.time.OffsetDateTime
 
 class ArticlePagerFactory(private val database: Database) {
@@ -35,15 +33,7 @@ class ArticlePagerFactory(private val database: Database) {
         sortOrder: SortOrder,
         since: OffsetDateTime
     ): PagingSource<Int, Article> {
-        return QueryPagingSource(
-            countQuery = articles.byStatus.count(
-                status = filter.status,
-                query = query,
-                since = since
-            ),
-            transacter = database.articlesQueries,
-            context = Dispatchers.IO,
-            queryProvider = { limit, offset ->
+        return ProgressiveArticlePagingSource { limit, offset ->
                 articles.byStatus.all(
                     status = filter.status,
                     query = query,
@@ -53,7 +43,6 @@ class ArticlePagerFactory(private val database: Database) {
                     offset = offset,
                 )
             }
-        )
     }
 
     private fun feedSource(
@@ -103,17 +92,7 @@ class ArticlePagerFactory(private val database: Database) {
         priority: FeedPriority,
         since: OffsetDateTime
     ): PagingSource<Int, Article> {
-        return QueryPagingSource(
-            countQuery = articles.byFeed.count(
-                feedIDs = feedIDs,
-                status = filter.status,
-                query = query,
-                since = since,
-                priority = priority,
-            ),
-            transacter = database.articlesQueries,
-            context = Dispatchers.IO,
-            queryProvider = { limit, offset ->
+        return ProgressiveArticlePagingSource { limit, offset ->
                 articles.byFeed.all(
                     feedIDs = feedIDs,
                     status = filter.status,
@@ -125,7 +104,6 @@ class ArticlePagerFactory(private val database: Database) {
                     priority = priority,
                 )
             }
-        )
     }
 
     private fun savedSearchSource(
@@ -134,16 +112,7 @@ class ArticlePagerFactory(private val database: Database) {
         sortOrder: SortOrder,
         since: OffsetDateTime
     ): PagingSource<Int, Article> {
-        return QueryPagingSource(
-            countQuery = articles.bySavedSearch.count(
-                savedSearchID = filter.savedSearchID,
-                status = filter.status,
-                query = query,
-                since = since
-            ),
-            transacter = database.articlesQueries,
-            context = Dispatchers.IO,
-            queryProvider = { limit, offset ->
+        return ProgressiveArticlePagingSource { limit, offset ->
                 articles.bySavedSearch.all(
                     savedSearchID = filter.savedSearchID,
                     status = filter.status,
@@ -154,7 +123,6 @@ class ArticlePagerFactory(private val database: Database) {
                     offset = offset,
                 )
             }
-        )
     }
 
     private fun todaySource(
@@ -163,15 +131,7 @@ class ArticlePagerFactory(private val database: Database) {
         sortOrder: SortOrder,
         since: OffsetDateTime
     ): PagingSource<Int, Article> {
-        return QueryPagingSource(
-            countQuery = articles.byToday.count(
-                status = filter.status,
-                query = query,
-                since = since
-            ),
-            transacter = database.articlesQueries,
-            context = Dispatchers.IO,
-            queryProvider = { limit, offset ->
+        return ProgressiveArticlePagingSource { limit, offset ->
                 articles.byToday.all(
                     status = filter.status,
                     query = query,
@@ -181,6 +141,5 @@ class ArticlePagerFactory(private val database: Database) {
                     since = since,
                 )
             }
-        )
     }
 }

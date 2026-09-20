@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
+import androidx.paging.LoadState
 import com.capyreader.app.R
 import com.capyreader.app.preferences.AppPreferences
 import com.jocmp.capy.Article
@@ -65,29 +66,37 @@ fun ArticleList(
                             listHeight = with(localDensity) { coordinates.size.height.toDp() }
                         }
                 ) {
-                    items(count = articles.itemCount, key = articles.itemKey { it.id }) { index ->
-                        val item = articles[index]
+                    val showRefreshSkeletons = articles.loadState.refresh is LoadState.Loading &&
+                            articles.itemCount == 0
+                    val skeletonCount = if (articleOptions.imagePreview == com.capyreader.app.common.ImagePreview.LARGE) 2 else 6
+                    val loadedCount = if (showRefreshSkeletons) skeletonCount else articles.itemCount
 
-                        Box(Modifier.animateItem()) {
-                            if (item == null) {
-                                PlaceholderArticleRow(articleOptions.imagePreview)
-                            } else {
-                                ArticleRow(
-                                    article = item,
-                                    index = index,
-                                    selected = selectedArticleKey == item.id,
-                                    onSelect = {
-                                        onSelect(it)
-                                    },
-                                    onMarkAllRead = onMarkAllRead,
-                                    currentTime = currentTime,
-                                    options = articleOptions
-                                )
-                            }
+                    items(count = loadedCount, key = if (showRefreshSkeletons) null else articles.itemKey { it.id }) { index ->
+                        val item = if (showRefreshSkeletons) null else articles[index]
+
+                        if (item == null) {
+                            PlaceholderArticleRow(articleOptions.imagePreview)
+                        } else {
+                            ArticleRow(
+                                article = item,
+                                index = index,
+                                selected = selectedArticleKey == item.id,
+                                onSelect = onSelect,
+                                onMarkAllRead = onMarkAllRead,
+                                currentTime = currentTime,
+                                options = articleOptions
+                            )
                         }
                     }
 
-                    if (enableMarkReadOnScroll && articles.itemCount > 0) {
+                    if (!showRefreshSkeletons && articles.loadState.append is LoadState.Loading) {
+                        item { PlaceholderArticleRow(articleOptions.imagePreview) }
+                    }
+
+                    val reachedEnd = articles.loadState.append.let {
+                        it is LoadState.NotLoading && it.endOfPaginationReached
+                    }
+                    if (enableMarkReadOnScroll && articles.itemCount > 0 && reachedEnd) {
                         item {
                             FeedOverScrollBox(height = listHeight)
                         }

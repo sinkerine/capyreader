@@ -89,8 +89,9 @@ fun ArticleView(
     val previousIndex = index - 1
     val nextIndex = index + 1
 
-    val hasPrevious = previousIndex > -1 && articles[index - 1] != null
-    val hasNext = nextIndex < articles.itemCount && articles[index + 1] != null
+    // A bounded pager may evict the article while its detail view is open.
+    val hasPrevious = index > 0 && articles[previousIndex] != null
+    val hasNext = index >= 0 && nextIndex < articles.itemCount && articles[nextIndex] != null
 
     val previousArticleId = if (hasPrevious) articles[previousIndex]?.id else null
     val nextArticleId = if (hasNext) articles[nextIndex]?.id else null
@@ -104,7 +105,7 @@ fun ArticleView(
     }
 
     fun selectNext() {
-        if (nextIndex >= articles.itemCount) return
+        if (index < 0 || nextIndex >= articles.itemCount) return
 
         articles[nextIndex]?.let {
             onSelectArticle(it.id)
@@ -315,4 +316,3 @@ private fun rememberContentPadding(pinToolbars: Boolean): PaddingValues {
         PaddingValues()
     }
 }
-

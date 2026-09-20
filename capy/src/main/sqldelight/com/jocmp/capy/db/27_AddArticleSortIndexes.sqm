@@ -1,0 +1,10 @@
+-- Replace redundant single-column article indexes with indexes matching the
+-- stable sort keys used by article lists.
+DROP INDEX articles_feed_id_index;
+DROP INDEX articles_published_at_index;
+
+CREATE INDEX articles_published_at_id_index
+ON articles(published_at, id);
+
+CREATE INDEX articles_feed_id_published_at_id_index
+ON articles(feed_id, published_at, id);

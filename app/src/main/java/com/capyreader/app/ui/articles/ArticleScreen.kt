@@ -609,7 +609,10 @@ fun ArticleScreen(
                                         onSwipeUp()
                                     },
                                 ) {
-                                    if (isRefreshInitialized && articles.itemCount == 0) {
+                                    if (isRefreshInitialized &&
+                                        articles.loadState.refresh is LoadState.NotLoading &&
+                                        articles.itemCount == 0
+                                    ) {
                                         ArticleListEmptyView()
                                     } else {
                                         ArticleList(

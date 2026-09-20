@@ -16,8 +16,11 @@ fun Account.buildArticlePager(
 ): Pager<Int, Article> {
     return Pager(
         config = PagingConfig(
-            pageSize = 100,
+            pageSize = 50,
+            initialLoadSize = 50,
             prefetchDistance = 10,
+            maxSize = 500,
+            enablePlaceholders = false,
         ),
         pagingSourceFactory = {
             ArticlePagerFactory(database).findArticles(
